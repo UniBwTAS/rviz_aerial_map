@@ -40,7 +40,7 @@ AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
         "UTM frame", "utm", "The name of the UTM frame.", this, nullptr, false, SLOT(propertyChanged()));
 
     alpha_property_ =
-        new FloatProperty("Alpha", 0.7, "Amount of transparency to apply to the map.", this, SLOT(propertyChanged()));
+        new FloatProperty("Alpha", 1, "Amount of transparency to apply to the map.", this, SLOT(propertyChanged()));
     alpha_property_->setMin(0);
     alpha_property_->setMax(1);
 
@@ -84,7 +84,7 @@ AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
 
     QString const url = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
     tile_url_property_ =
-        new StringProperty("Object URL", url, "URL from which to retrieve map tiles.", this, SLOT(propertyChanged()));
+        new StringProperty("URL", url, "URL from which to retrieve map tiles.", this, SLOT(propertyChanged()));
 
     QString const zoom_desc = QString::fromStdString("Zoom level (0 - " + std::to_string(22) + ")");
     zoom_property_ = new IntProperty("Zoom", 18, zoom_desc, this, SLOT(propertyChanged()));
@@ -98,7 +98,7 @@ AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
 
     // tiff speciffic properties
     tile_uri_property_ = new StringProperty(
-        "Object URI", "", "Filepath from which to retrieve map tiles.", this, SLOT(propertyChanged()));
+        "Filepath", "", "Filepath from which to retrieve map tiles.", this, SLOT(propertyChanged()));
 
     roi_property_ = new FloatProperty("ROI",
                                       30,
