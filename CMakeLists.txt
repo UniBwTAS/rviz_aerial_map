@@ -13,22 +13,16 @@ if (NOT OGRE_OV_FOUND)
 endif ()
 
 find_package(catkin REQUIRED COMPONENTS
-    nav_msgs
     roscpp
     rviz
     sensor_msgs
-    geodesy
-    geographic_msgs
     ogre_helpers
     ogre_primitives
     tas_proj
     map_helpers)
 
 catkin_package(CATKIN_DEPENDS
-    nav_msgs
     sensor_msgs
-    geodesy
-    geographic_msgs
     ogre_helpers
     ogre_primitives
     tas_proj

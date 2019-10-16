@@ -54,13 +54,14 @@ AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
     height_type_property_ = new EnumProperty(
         "Use height",
         "from base_link",
-        "Whether to draw the map at the height defined by the altitude in the NavSatFix message, which is by "
-        "definition the height over the WGS84 ellipsoid. Alternatively one can use the height of the base_link in the "
-        "UTM frame in case a different height was used (e.g. height over EGM08 geoid).",
+        "Whether to draw the map at the height over WGS84 ellipsoid (as given in the NavSatFix message) or over the "
+        "EGM96 geoid. Alternatively one can use the height of the base_link in the UTM frame in case a different "
+        "height was used (e.g. height over EGM08 geoid).",
         this,
         SLOT(propertyChanged()));
     height_type_property_->addOption("from base_link", HEIGHT_TYPE_BASE_LINK);
-    height_type_property_->addOption("from message", HEIGHT_TYPE_MESSAGE);
+    height_type_property_->addOption("over WGS84 ellipsoid", HEIGHT_TYPE_WGS84);
+    height_type_property_->addOption("over EGM96 geoid", HEIGHT_TYPE_EGM96);
 
     height_offset_property_ = new FloatProperty(
         "Height offset",
@@ -70,15 +71,15 @@ AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
         this,
         SLOT(propertyChanged()));
 
-    map_type_property_ = new EnumProperty(
-        "Map type",
-        "Open Street Map",
-        "Whether to use the images from Open Street Map (and compatible alternatives) or TIFF images from "
-        "local disk.",
-        this,
-        SLOT(propertyChanged()));
+    map_type_property_ = new EnumProperty("Map type",
+                                          "Open Street Map",
+                                          "Whether to use the images from Open Street Map (and compatible "
+                                          "alternatives) or georeferenced images from local disk. For the latter all "
+                                          "types can be used, which are supported by the GDAL library.",
+                                          this,
+                                          SLOT(propertyChanged()));
     map_type_property_->addOption("Open Street Map", MAP_TYPE_OSM);
-    map_type_property_->addOption("Tiff Images", MAP_TYPE_TIFF);
+    map_type_property_->addOption("Georeferenced Images", MAP_TYPE_TIFF);
 
     // osm specific properties
 
@@ -98,7 +99,7 @@ AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
 
     // tiff speciffic properties
     tile_uri_property_ = new StringProperty(
-        "Filepath", "", "Filepath from which to retrieve map tiles.", this, SLOT(propertyChanged()));
+        "Filepath", "", "Directory from which to retrieve map tiles.", this, SLOT(propertyChanged()));
 
     roi_property_ = new FloatProperty("ROI",
                                       30,
@@ -483,26 +484,29 @@ bool AerialMapDisplay::applyTransforms()
         dirty_ = true;
     }
 
-    if (height_type_ == HEIGHT_TYPE_MESSAGE)
+    switch (height_type_)
     {
-        // height over WGS84 ellipsoid
-        ref_pose_->position.z = last_msg_->altitude;
-    }
-    else if (height_type_ == HEIGHT_TYPE_BASE_LINK)
-    {
-        // height defined by base_link
-        std::shared_ptr<tf2_ros::Buffer> tf_buffer = context_->getFrameManager()->getTF2BufferPtr();
-        geometry_msgs::TransformStamped tf;
-        try
-        {
-            tf = tf_buffer->lookupTransform(utm_frame_, "base_link", ros::Time(0));
-        }
-        catch (tf2::TransformException& ex)
-        {
-            ROS_WARN("%s", ex.what());
-            return false;
-        }
-        ref_pose_->position.z = tf.transform.translation.z;
+        case HEIGHT_TYPE_WGS84:
+            ref_pose_->position.z = last_msg_->altitude;
+            break;
+        case HEIGHT_TYPE_EGM96:
+            ref_pose_->position.z =
+                geoid_converter_.geoidalHeight(last_msg_->longitude, last_msg_->latitude, last_msg_->altitude);
+            break;
+        case HEIGHT_TYPE_BASE_LINK:
+            std::shared_ptr<tf2_ros::Buffer> tf_buffer = context_->getFrameManager()->getTF2BufferPtr();
+            geometry_msgs::TransformStamped tf;
+            try
+            {
+                tf = tf_buffer->lookupTransform(utm_frame_, "base_link", ros::Time(0));
+            }
+            catch (tf2::TransformException& ex)
+            {
+                ROS_WARN("%s", ex.what());
+                return false;
+            }
+            ref_pose_->position.z = tf.transform.translation.z;
+            break;
     }
 
     // manual offset for ideal visualization

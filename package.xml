@@ -11,10 +11,7 @@
 
     <depend>roscpp</depend>
     <depend>rviz</depend>
-    <depend>nav_msgs</depend>
     <depend>sensor_msgs</depend>
-    <depend>geodesy</depend>
-    <depend>geographic_msgs</depend>
     <depend>ogre_helpers</depend>
     <depend>ogre_primitives</depend>
     <depend>tas_proj</depend>

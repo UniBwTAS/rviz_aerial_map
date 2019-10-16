@@ -15,6 +15,7 @@
 #include <map_helpers/osm_tile_helper.h>
 #include <map_helpers/tiff_tile_helper.h>
 #include <tas_proj/gps_utm_converter.h>
+#include <tas_proj/geoid_converter.h>
 
 #include "helpers/texture_cache.h"
 
@@ -40,7 +41,8 @@ class AerialMapDisplay : public Display
     static const int MAP_TYPE_TIFF = 1;
 
     static const int HEIGHT_TYPE_BASE_LINK = 0;
-    static const int HEIGHT_TYPE_MESSAGE = 1;
+    static const int HEIGHT_TYPE_WGS84 = 1;
+    static const int HEIGHT_TYPE_EGM96 = 2;
 
   public:
     AerialMapDisplay();
@@ -120,6 +122,7 @@ class AerialMapDisplay : public Display
 
     // tile management
     tas::proj::GpsUtmConverter gps_utm_converter_;
+    tas::proj::GeoidConverter geoid_converter_;
     std::unique_ptr<tas::visualization::TiffTileHelper> tiff_tile_helper_;
     std::unique_ptr<tas::visualization::OsmTileHelper> osm_tile_helper_;
     geometry_msgs::PosePtr ref_pose_;
