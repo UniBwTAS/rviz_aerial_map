@@ -36,8 +36,8 @@ AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
                              this,
                              SLOT(updateTopic()));
 
-    utm_frame_property_ = new TfFrameProperty(
-        "UTM frame", "utm", "The name of the UTM frame.", this, nullptr, false, SLOT(propertyChanged()));
+    map_frame_property_ = new TfFrameProperty(
+        "Map frame", "map", "Specify any world fixed frame.", this, nullptr, false, SLOT(propertyChanged()));
 
     alpha_property_ =
         new FloatProperty("Alpha", 1, "Amount of transparency to apply to the map.", this, SLOT(propertyChanged()));
@@ -50,18 +50,6 @@ AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
                                             " drawn behind everything else.",
                                             this,
                                             SLOT(propertyChanged()));
-
-    height_type_property_ = new EnumProperty(
-        "Use height",
-        "from base_link",
-        "Whether to draw the map at the height over WGS84 ellipsoid (as given in the NavSatFix message) or over the "
-        "EGM96 geoid. Alternatively one can use the height of the base_link in the UTM frame in case a different "
-        "height was used (e.g. height over EGM08 geoid).",
-        this,
-        SLOT(propertyChanged()));
-    height_type_property_->addOption("from base_link", HEIGHT_TYPE_BASE_LINK);
-    height_type_property_->addOption("over WGS84 ellipsoid", HEIGHT_TYPE_WGS84);
-    height_type_property_->addOption("over EGM96 geoid", HEIGHT_TYPE_EGM96);
 
     height_offset_property_ = new FloatProperty(
         "Height offset",
@@ -120,14 +108,13 @@ void AerialMapDisplay::onInitialize()
     Display::onInitialize();
 
     tile_node_ = scene_node_->createChildSceneNode();
-    utm_frame_property_->setFrameManager(context_->getFrameManager());
-
-    propertyChanged();
+    map_frame_property_->setFrameManager(context_->getFrameManager());
 }
 
 void AerialMapDisplay::onEnable()
 {
     subscribe();
+    propertyChanged();
 }
 
 void AerialMapDisplay::onDisable()
@@ -168,10 +155,9 @@ void AerialMapDisplay::unsubscribe()
 
 void AerialMapDisplay::propertyChanged()
 {
-    utm_frame_ = utm_frame_property_->getStdString();
+    map_frame_ = map_frame_property_->getStdString();
     alpha_ = alpha_property_->getFloat();
     draw_under_ = draw_under_property_->getBool();
-    height_type_ = height_type_property_->getOptionInt();
     height_offset_ = height_offset_property_->getFloat();
     map_type_ = map_type_property_->getOptionInt();
 
@@ -211,7 +197,7 @@ void AerialMapDisplay::propertyChanged()
 
     dirty_ = true;
 
-    applyTransforms();
+    applyTransforms(true);
     loadImagery();
     assembleScene();
 
@@ -304,7 +290,6 @@ void AerialMapDisplay::loadImagery()
     gps.lat = last_msg_->latitude;
     gps.lon = last_msg_->longitude;
 
-    // TODO: Make it more efficient by checking whether we left current tile
     if (map_type_ == MAP_TYPE_OSM)
     {
         tile_infos_ = osm_tile_helper_->getTileInfo(gps, zoom_, tile_url_, blocks_);
@@ -391,14 +376,14 @@ void AerialMapDisplay::assembleScene()
         tas::visualization::Polygon polygon = tile_info.enclosure;
         auto it = boost::begin(boost::geometry::exterior_ring(polygon));
 
-        auto top_left_x = static_cast<float>(boost::geometry::get<0>(*it) - ref_pose_->position.x);
-        auto top_left_y = static_cast<float>(boost::geometry::get<1>(*it++) - ref_pose_->position.y);
-        auto bottom_left_x = static_cast<float>(boost::geometry::get<0>(*it) - ref_pose_->position.x);
-        auto bottom_left_y = static_cast<float>(boost::geometry::get<1>(*it++) - ref_pose_->position.y);
-        auto bottom_right_x = static_cast<float>(boost::geometry::get<0>(*it) - ref_pose_->position.x);
-        auto bottom_right_y = static_cast<float>(boost::geometry::get<1>(*it++) - ref_pose_->position.y);
-        auto top_right_x = static_cast<float>(boost::geometry::get<0>(*it) - ref_pose_->position.x);
-        auto top_right_y = static_cast<float>(boost::geometry::get<1>(*it) - ref_pose_->position.y);
+        auto top_left_x = static_cast<float>(boost::geometry::get<0>(*it) - ref_utm_.east);
+        auto top_left_y = static_cast<float>(boost::geometry::get<1>(*it++) - ref_utm_.north);
+        auto bottom_left_x = static_cast<float>(boost::geometry::get<0>(*it) - ref_utm_.east);
+        auto bottom_left_y = static_cast<float>(boost::geometry::get<1>(*it++) - ref_utm_.north);
+        auto bottom_right_x = static_cast<float>(boost::geometry::get<0>(*it) - ref_utm_.east);
+        auto bottom_right_y = static_cast<float>(boost::geometry::get<1>(*it++) - ref_utm_.north);
+        auto top_right_x = static_cast<float>(boost::geometry::get<0>(*it) - ref_utm_.east);
+        auto top_right_y = static_cast<float>(boost::geometry::get<1>(*it) - ref_utm_.north);
 
         obj->setParameters(top_left_x,
                            top_left_y,
@@ -440,9 +425,15 @@ void AerialMapDisplay::assembleScene()
     texture_cache_->purge(urls);
 }
 
-bool AerialMapDisplay::applyTransforms()
+bool AerialMapDisplay::applyTransforms(bool force_new_ref)
 {
     if (!isEnabled() || !last_msg_)
+    {
+        return false;
+    }
+
+    geometry_msgs::Pose cur_pose;
+    if (!getAxisAlignedPoseInMapFrame(cur_pose))
     {
         return false;
     }
@@ -450,77 +441,32 @@ bool AerialMapDisplay::applyTransforms()
     double distance = 0;
     if (ref_pose_)
     {
-
-        tf2::Vector3 cur_pos;
-        tas::proj::UtmCoord utm;
-        gpsToUtm(*last_msg_, utm);
-        cur_pos.setX(utm.east);
-        cur_pos.setY(utm.north);
-        cur_pos.setZ(utm.altitude);
-
-        tf2::Vector3 ref_pos;
+        tf2::Vector3 cur_pos, ref_pos;
+        tf2::fromMsg(cur_pose.position, cur_pos);
         tf2::fromMsg(ref_pose_->position, ref_pos);
 
         distance = (cur_pos - ref_pos).length();
     }
 
-    // use reference frame for numerical stability of Ogre calculation
-    if (!ref_pose_ || distance > 10000)
+    if (!ref_pose_ || distance > 5000 || force_new_ref)
     {
-        tas::proj::UtmCoord utm;
-        gpsToUtm(*last_msg_, utm);
+        gpsToUtm(*last_msg_, ref_utm_);
 
         ref_pose_.reset(new geometry_msgs::Pose());
-
-        // utm position and zero orientation
-        ref_pose_->position.x = utm.east;
-        ref_pose_->position.y = utm.north;
-        ref_pose_->position.z = 0;
-        ref_pose_->orientation.x = 0;
-        ref_pose_->orientation.y = 0;
-        ref_pose_->orientation.z = 0;
-        ref_pose_->orientation.w = 1;
+        *ref_pose_ = cur_pose;
 
         dirty_ = true;
     }
 
-    switch (height_type_)
-    {
-        case HEIGHT_TYPE_WGS84:
-            ref_pose_->position.z = last_msg_->altitude;
-            break;
-        case HEIGHT_TYPE_EGM96:
-            ref_pose_->position.z =
-                geoid_converter_.geoidalHeight(last_msg_->longitude, last_msg_->latitude, last_msg_->altitude);
-            break;
-        case HEIGHT_TYPE_BASE_LINK:
-            std::shared_ptr<tf2_ros::Buffer> tf_buffer = context_->getFrameManager()->getTF2BufferPtr();
-            geometry_msgs::TransformStamped tf;
-            try
-            {
-                tf = tf_buffer->lookupTransform(utm_frame_, "base_link", ros::Time(0));
-            }
-            catch (tf2::TransformException& ex)
-            {
-                ROS_WARN("%s", ex.what());
-                return false;
-            }
-            ref_pose_->position.z = tf.transform.translation.z;
-            break;
-    }
-
-    // manual offset for ideal visualization
-    ref_pose_->position.z += height_offset_;
+    ref_pose_->position.z = cur_pose.position.z + height_offset_;
 
     Ogre::Quaternion orientation;
     Ogre::Vector3 position;
-
-    // Get the latest transform between the robot frame and fixed frame from the FrameManager
-    if (!context_->getFrameManager()->transform(utm_frame_, ros::Time(), *ref_pose_, position, orientation))
+    if (!context_->getFrameManager()->transform(map_frame_, ros::Time(), *ref_pose_, position, orientation))
     {
         setStatus(StatusProperty::Error,
                   "Transform",
-                  "Could not transform from [" + QString::fromStdString(utm_frame_) + "] to Fixed Frame [" +
+                  "Could not transform from [" + QString::fromStdString(map_frame_) + "] to Fixed Frame [" +
                       fixed_frame_ + "]");
         dirty_ = false;
         return false;
@@ -553,6 +499,30 @@ void AerialMapDisplay::gpsToUtm(const sensor_msgs::NavSatFix& from, tas::proj::U
     gps.altitude = from.altitude;
 
     gps_utm_converter_.gpsToUtm(gps, to);
+}
+
+bool AerialMapDisplay::getAxisAlignedPoseInMapFrame(geometry_msgs::Pose& out)
+{
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer = context_->getFrameManager()->getTF2BufferPtr();
+    geometry_msgs::TransformStamped tf;
+    try
+    {
+        tf = tf_buffer->lookupTransform(map_frame_, last_msg_->header.frame_id, ros::Time(0));
+        out.position.x = tf.transform.translation.x;
+        out.position.y = tf.transform.translation.y;
+        out.position.z = tf.transform.translation.z;
+        out.orientation.x = 0;
+        out.orientation.y = 0;
+        out.orientation.z = 0;
+        out.orientation.w = 1;
+
+        return true;
+    }
+    catch (tf2::TransformException& ex)
+    {
+        ROS_WARN("%s", ex.what());
+        return false;
+    }
 }
 
 } // namespace rviz
