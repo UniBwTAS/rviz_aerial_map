@@ -16,14 +16,12 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp
     rviz
     sensor_msgs
-    ogre_helpers
     ogre_primitives
     tas_proj
     map_helpers)
 
 catkin_package(CATKIN_DEPENDS
     sensor_msgs
-    ogre_helpers
     ogre_primitives
     tas_proj
     map_helpers)
