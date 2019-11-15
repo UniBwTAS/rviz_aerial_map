@@ -213,8 +213,9 @@ void AerialMapDisplay::updateTopic()
 
 void AerialMapDisplay::clear()
 {
-    setStatus(StatusProperty::Warn, "Message", "No tiles found");
+    setStatus(StatusProperty::Warn, "Message", "Scene cleared");
     clearGeometry();
+    dirty_ = true;
 }
 
 void AerialMapDisplay::clearGeometry()
@@ -468,7 +469,6 @@ bool AerialMapDisplay::applyTransforms(bool force_new_ref)
                   "Transform",
                   "Could not transform from [" + QString::fromStdString(map_frame_) + "] to Fixed Frame [" +
                       fixed_frame_ + "]");
-        dirty_ = false;
         return false;
     }
     setStatus(StatusProperty::Ok, "Transform", "Transform OK");
@@ -520,7 +520,10 @@ bool AerialMapDisplay::getAxisAlignedPoseInMapFrame(geometry_msgs::Pose& out)
     }
     catch (tf2::TransformException& ex)
     {
-        ROS_WARN("%s", ex.what());
+        setStatus(StatusProperty::Error,
+                  "Transform",
+                  "Could not transform from [" + QString::fromStdString(map_frame_) + "] to NavSatFix Frame [" +
+                      QString::fromStdString(last_msg_->header.frame_id) + "]");
         return false;
     }
 }
