@@ -24,7 +24,7 @@
 
 namespace rviz
 {
-AerialMapDisplay::AerialMapDisplay() : Display(), dirty_(false)
+AerialMapDisplay::AerialMapDisplay() : Display(), messages_received_(0), dirty_(false)
 {
     // general properties
 
@@ -213,7 +213,8 @@ void AerialMapDisplay::updateTopic()
 
 void AerialMapDisplay::clear()
 {
-    setStatus(StatusProperty::Warn, "Message", "Scene cleared");
+    setStatus(StatusProperty::Warn, "NavSatFix", "No NavSatFix received");
+    setStatus(StatusProperty::Warn, "Tiles", "No image tiles loaded");
     clearGeometry();
     dirty_ = true;
 }
@@ -273,6 +274,9 @@ void AerialMapDisplay::update(float, float)
 
 void AerialMapDisplay::navFixCallback(sensor_msgs::NavSatFixConstPtr const& msg)
 {
+    ++messages_received_;
+    setStatus(StatusProperty::Ok, "NavSatFix", QString::number(messages_received_) + " InstanceArrays received");
+
     last_msg_ = msg;
 
     // re-load imagery
@@ -402,19 +406,19 @@ void AerialMapDisplay::assembleScene()
     // since not all tiles were loaded, this function has to be called again
     if (num_tiles_found == 0)
     {
-        setStatus(StatusProperty::Warn, "Message", "No tiles found");
+        setStatus(StatusProperty::Warn, "Tiles", "No image tiles loaded");
         dirty_ = true;
     }
     else if (num_tiles_found < tile_infos_->size())
     {
         // some tiles were not found
         // lets print no warning as this happens frequently when a new tile is entered
-        setStatus(StatusProperty::Ok, "Message", "All tiles found");
+        setStatus(StatusProperty::Ok, "Tiles", "Some image tiles missing");
         dirty_ = true;
     }
     else
     {
-        setStatus(StatusProperty::Ok, "Message", "All tiles found");
+        setStatus(StatusProperty::Ok, "Tiles", "All image tiles loaded");
     }
 
     // TODO: Maybe store urls separately for more efficiency
@@ -486,8 +490,9 @@ void AerialMapDisplay::fixedFrameChanged()
 
 void AerialMapDisplay::reset()
 {
+    messages_received_ = 0;
+
     Display::reset();
-    // unsub,clear,resub
     updateTopic();
 }
 

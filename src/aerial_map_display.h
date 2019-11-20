@@ -90,6 +90,7 @@ class AerialMapDisplay : public Display
     std::vector<Ogre::MaterialPtr> materials_;
 
     ros::Subscriber coord_sub_;
+    uint32_t messages_received_;
 
     // general properties
     RosTopicProperty* topic_property_;
