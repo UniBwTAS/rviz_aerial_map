@@ -177,6 +177,16 @@ void AerialMapDisplay::propertyChanged()
         tile_uri_property_->show();
         roi_property_->show();
 
+        // TAS specific path
+        if (tile_uri_.length() == 0)
+        {
+            const char* path = std::getenv("MUCAR_HOME");
+            if (path != NULL)
+            {
+                tile_uri_ = std::string(path) + "/data/aerial_images";
+            }
+        }
+
         texture_cache_.reset(new TextureCache(false));
         osm_tile_helper_.reset();
         tiff_tile_helper_.reset(new tas::visualization::TiffTileHelper({tile_uri_}));
