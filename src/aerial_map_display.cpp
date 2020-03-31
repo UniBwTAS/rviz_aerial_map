@@ -320,10 +320,7 @@ void AerialMapDisplay::loadImagery()
                    std::back_inserter(urls),
                    [](const tas::visualization::TileInfo& tile_info) -> std::string { return tile_info.filename; });
 
-    if (texture_cache_->request(urls))
-    {
-        dirty_ = true;
-    }
+    dirty_ = texture_cache_->request(urls);
 }
 
 void AerialMapDisplay::assembleScene()
@@ -431,13 +428,11 @@ void AerialMapDisplay::assembleScene()
         setStatus(StatusProperty::Ok, "Tiles", "All image tiles loaded");
     }
 
-    // TODO: Maybe store urls separately for more efficiency
     std::vector<std::string> urls;
     std::transform((*tile_infos_).begin(),
                    (*tile_infos_).end(),
                    std::back_inserter(urls),
                    [](const tas::visualization::TileInfo& tile_info) -> std::string { return tile_info.filename; });
-    texture_cache_->purge(urls);
 }
 
 bool AerialMapDisplay::applyTransforms(bool force_new_ref)

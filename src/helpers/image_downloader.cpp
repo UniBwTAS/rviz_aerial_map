@@ -18,7 +18,6 @@ void ImageDownloader::loadFile(const std::string& url)
 {
     // see:
     // https://foundation.wikimedia.org/wiki/Maps_Terms_of_Use#Using_maps_in_third-party_services
-
     QNetworkRequest request(QUrl(QString::fromStdString(url)));
     char constexpr agent[] = "rviz_satellite/" RVIZ_SATELLITE_VERSION " (+https://github.com/gareth-cross/"
                              "rviz_satellite)";
@@ -28,19 +27,17 @@ void ImageDownloader::loadFile(const std::string& url)
 
 void ImageDownloader::downloadFinished(QNetworkReply* reply)
 {
-    QUrl const url = reply->url();
-    if (reply->error())
+    QImage image = QImage();
+    if(!reply->error())
     {
-        return;
+        QImageReader reader(reply);
+        if (reader.canRead())
+        {
+            image = reader.read();
+        }
     }
 
-    QImageReader reader(reply);
-    if (!reader.canRead())
-    {
-        return;
-    }
-
-    callback(url.toString().toStdString(), reader.read());
+    callback(reply->url().toString().toStdString(), image);
 
     reply->deleteLater();
 }

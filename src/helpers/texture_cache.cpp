@@ -1,10 +1,7 @@
 #include <functional>
-#include <thread>
-#include <utility>
-
-#include <QImage>
-
 #include <OGRE/OgreTextureManager.h>
+#include <QImage>
+#include <ros/console.h>
 
 #include "texture_cache.h"
 
@@ -20,9 +17,10 @@ TextureCache::~TextureCache()
 
     for (auto& cached_texture : cached_textures_)
     {
-        if (!cached_texture.second.isNull())
+        Ogre::TexturePtr ptr = std::get<2>(cached_texture.second);
+        if (!ptr.isNull())
         {
-            Ogre::TextureManager::getSingleton().remove(cached_texture.second->getName());
+            Ogre::TextureManager::getSingleton().remove(ptr->getName());
         }
     }
 }
@@ -31,33 +29,60 @@ bool TextureCache::request(const std::vector<std::string>& uris)
 {
     std::lock_guard<std::mutex> lock_guard(mutex);
 
+    // load images if not requested so far
     bool is_dirty = false;
-
     for (const std::string& uri : uris)
     {
-        if (cached_textures_.find(uri) == cached_textures_.end())
+        auto it = cached_textures_.find(uri);
+        bool load_image = false;
+        if (it == cached_textures_.end())
+        {
+            ROS_DEBUG_STREAM("LOADING [NOT LISTED]: " << uri);
+            load_image = true;
+        }
+        else
+        {
+            int status = std::get<0>(it->second);
+            double elapsed_time = static_cast<double>(clock() - std::get<1>(it->second)) / CLOCKS_PER_SEC;
+            if ((status == STATUS_ERROR || status == STATUS_LOADING) && elapsed_time > 3.)
+            {
+                ROS_DEBUG_STREAM("LOADING [TIMEOUT]: " << uri << "(" << elapsed_time << ")");
+                cached_textures_.erase(it);
+                load_image = true;
+            }
+        }
+        if (load_image)
         {
             is_dirty = true;
-            cached_textures_.emplace(std::make_pair(uri, Ogre::TexturePtr()));
+            cached_textures_.insert({uri, {STATUS_LOADING, clock(), Ogre::TexturePtr()}});
             if (uri_is_url_)
             {
                 downloader_.loadFile(uri);
             }
             else
             {
-                /*std::thread([this, uri] {
-                    QImage img(QString::fromStdString(uri), nullptr);
-                    imageLoadedGuarded(uri, img);
-                }).detach();*/
                 QImage img(QString::fromStdString(uri), nullptr);
                 imageLoaded(uri, img);
             }
         }
     }
 
-    if (uris.size() != cached_textures_.size())
+    // purge remaining textures
+    for (auto it = cached_textures_.begin(); it != cached_textures_.end();)
     {
-        is_dirty = true;
+        if (std::find(uris.begin(), uris.end(), it->first) == uris.end())
+        {
+            Ogre::TexturePtr ptr = std::get<2>(it->second);
+            if (!ptr.isNull())
+            {
+                Ogre::TextureManager::getSingleton().remove(ptr->getName());
+            }
+            it = cached_textures_.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
     }
 
     return is_dirty;
@@ -74,28 +99,7 @@ Ogre::TexturePtr TextureCache::ready(const std::string& uri) const
         return Ogre::TexturePtr();
     }
 
-    return it->second;
-}
-
-void TextureCache::purge(const std::vector<std::string>& except_uris)
-{
-    std::lock_guard<std::mutex> lock_guard(mutex);
-
-    for (auto it = cached_textures_.begin(); it != cached_textures_.end();)
-    {
-        if (std::find(except_uris.begin(), except_uris.end(), it->first) == except_uris.end())
-        {
-            if (!it->second.isNull())
-            {
-                Ogre::TextureManager::getSingleton().remove(it->second->getName());
-            }
-            it = cached_textures_.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
+    return std::get<2>(it->second);
 }
 
 Ogre::TexturePtr TextureCache::textureFromImage(const QImage& image, const std::string& name)
@@ -120,16 +124,18 @@ QImage TextureCache::convertImage(const QImage& image)
 void TextureCache::imageLoaded(const std::string& uri, const QImage& image)
 {
     auto it = cached_textures_.find(uri);
-
-    if (cached_textures_.find(uri) != cached_textures_.end())
+    if (it != cached_textures_.end())
     {
         if (!image.isNull())
         {
-            it->second = textureFromImage(convertImage(image), uri);
+            ROS_DEBUG_STREAM("SUCCESS: " << uri << std::endl);
+            std::get<2>(it->second) = textureFromImage(convertImage(image), uri);
+            std::get<0>(it->second) = STATUS_FINISHED;
         }
         else
         {
-            cached_textures_.erase(it);
+            ROS_DEBUG_STREAM("ERROR: " << uri << std::endl);
+            std::get<0>(it->second) = STATUS_ERROR;
         }
     }
 }

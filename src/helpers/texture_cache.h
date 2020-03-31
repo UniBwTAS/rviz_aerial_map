@@ -1,19 +1,23 @@
 #pragma once
 
+#include <map>
 #include <mutex>
-#include <unordered_map>
 
 #include "helpers/image_downloader.h"
 
 class TextureCache
 {
   public:
+    static const int STATUS_LOADING = 0;
+    static const int STATUS_FINISHED = 1;
+    static const int STATUS_ERROR = 2;
+
+  public:
     explicit TextureCache(bool uri_is_url);
     ~TextureCache();
 
     bool request(const std::vector<std::string>& uris);
     Ogre::TexturePtr ready(const std::string& uri) const;
-    void purge(const std::vector<std::string>& except_uris);
 
   private:
     void imageLoaded(const std::string& uri, const QImage& image);
@@ -28,6 +32,6 @@ class TextureCache
   private:
     mutable std::mutex mutex;
     bool uri_is_url_;
-    std::unordered_map<std::string, Ogre::TexturePtr> cached_textures_;
+    std::map<std::string, std::tuple<int, clock_t, Ogre::TexturePtr>> cached_textures_;
     ImageDownloader downloader_;
 };
