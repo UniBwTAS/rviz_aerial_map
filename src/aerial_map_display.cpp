@@ -285,7 +285,7 @@ void AerialMapDisplay::update(float, float)
 void AerialMapDisplay::navFixCallback(sensor_msgs::NavSatFixConstPtr const& msg)
 {
     ++messages_received_;
-    setStatus(StatusProperty::Ok, "NavSatFix", QString::number(messages_received_) + " InstanceArrays received");
+    setStatus(StatusProperty::Ok, "NavSatFix", QString::number(messages_received_) + " messages received");
 
     last_msg_ = msg;
 
@@ -320,7 +320,7 @@ void AerialMapDisplay::loadImagery()
                    std::back_inserter(urls),
                    [](const tas::visualization::TileInfo& tile_info) -> std::string { return tile_info.filename; });
 
-    dirty_ = texture_cache_->request(urls);
+    dirty_ |= texture_cache_->request(urls);
 }
 
 void AerialMapDisplay::assembleScene()

@@ -128,7 +128,7 @@ void TextureCache::imageLoaded(const std::string& uri, const QImage& image)
     {
         if (!image.isNull())
         {
-            ROS_DEBUG_STREAM("SUCCESS: " << uri << std::endl);
+            ROS_DEBUG_STREAM("SUCCESS: " << uri);
             std::get<2>(it->second) = textureFromImage(convertImage(image), uri);
             std::get<0>(it->second) = STATUS_FINISHED;
         }
