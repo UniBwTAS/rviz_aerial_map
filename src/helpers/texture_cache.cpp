@@ -54,7 +54,8 @@ bool TextureCache::request(const std::vector<std::string>& uris)
         if (load_image)
         {
             is_dirty = true;
-            cached_textures_.insert({uri, {STATUS_LOADING, clock(), Ogre::TexturePtr()}});
+            int status = STATUS_LOADING;
+            cached_textures_.insert({uri, {status, clock(), Ogre::TexturePtr()}});
             if (uri_is_url_)
             {
                 downloader_.loadFile(uri);
