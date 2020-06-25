@@ -8,9 +8,12 @@
 class TextureCache
 {
   public:
-    static const int STATUS_LOADING = 0;
-    static const int STATUS_FINISHED = 1;
-    static const int STATUS_ERROR = 2;
+    enum class Status
+    {
+        Loading,
+        Finished,
+        Error
+    };
 
   public:
     explicit TextureCache(bool uri_is_url);
@@ -32,6 +35,6 @@ class TextureCache
   private:
     mutable std::mutex mutex;
     bool uri_is_url_;
-    std::map<std::string, std::tuple<int, clock_t, Ogre::TexturePtr>> cached_textures_;
+    std::map<std::string, std::tuple<Status, clock_t, Ogre::TexturePtr>> cached_textures_;
     ImageDownloader downloader_;
 };
