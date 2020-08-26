@@ -517,7 +517,7 @@ bool AerialMapDisplay::getAxisAlignedPoseInMapFrame(geometry_msgs::Pose& out)
     geometry_msgs::TransformStamped tf;
     try
     {
-        tf = tf_buffer->lookupTransform(map_frame_, last_msg_->header.frame_id, ros::Time(0));
+        tf = tf_buffer->lookupTransform(map_frame_, "base_link", ros::Time(0));
         out.position.x = tf.transform.translation.x;
         out.position.y = tf.transform.translation.y;
         out.position.z = tf.transform.translation.z;
