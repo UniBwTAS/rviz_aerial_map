@@ -15,6 +15,7 @@
 #include <map_helpers/osm_tile_helper.h>
 #include <map_helpers/tiff_tile_helper.h>
 #include <tas_proj/gps_utm_converter.h>
+#include <tas_proj/geoid_converter.h>
 
 #include "helpers/texture_cache.h"
 
@@ -83,8 +84,7 @@ class AerialMapDisplay : public Display
     void clearGeometry();
     void createGeometry();
     bool applyTransforms(bool force_new_ref = false);
-    void gpsToUtm(const sensor_msgs::NavSatFix& from, tas::proj::UtmCoord& to);
-    bool getAxisAlignedPoseInMapFrame(geometry_msgs::Pose& out);
+    bool getAxisAlignedPoseInUtmFrame(geometry_msgs::Pose& out);
 
     std::vector<std::shared_ptr<rviz::MapTile>> objects_;
     std::vector<Ogre::MaterialPtr> materials_;
@@ -94,12 +94,12 @@ class AerialMapDisplay : public Display
 
     // general properties
     RosTopicProperty* topic_property_;
-    TfFrameProperty* map_frame_property_;
+    TfFrameProperty* utm_frame_property_;
     FloatProperty* alpha_property_;
     BoolProperty* draw_under_property_;
     FloatProperty* height_offset_property_;
     EnumProperty* map_type_property_;
-    std::string map_frame_;
+    std::string utm_frame_;
     float alpha_;
     bool draw_under_;
     float height_offset_;
@@ -121,10 +121,10 @@ class AerialMapDisplay : public Display
 
     // tile management
     tas::proj::GpsUtmConverter gps_utm_converter_;
+    tas::proj::GeoidConverter geoid_converter_;
     std::unique_ptr<tas::visualization::TiffTileHelper> tiff_tile_helper_;
     std::unique_ptr<tas::visualization::OsmTileHelper> osm_tile_helper_;
     geometry_msgs::PosePtr ref_pose_;
-    tas::proj::UtmCoord ref_utm_;
     Ogre::SceneNode* tile_node_ = nullptr;
     bool dirty_;
     sensor_msgs::NavSatFixConstPtr last_msg_;
