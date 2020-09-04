@@ -14,8 +14,8 @@
 
 #include <map_helpers/osm_tile_helper.h>
 #include <map_helpers/tiff_tile_helper.h>
-#include <tas_proj/gps_utm_converter.h>
 #include <tas_proj/geoid_converter.h>
+#include <tas_proj/gps_utm_converter.h>
 
 #include "helpers/texture_cache.h"
 
@@ -37,12 +37,19 @@ class AerialMapDisplay : public Display
 {
     Q_OBJECT
   public:
-    static const int MAP_TYPE_OSM = 0;
-    static const int MAP_TYPE_TIFF = 1;
+    enum
+    {
+        MAP_TYPE_OSM,
+        MAP_TYPE_TIFF,
+    };
 
-    static const int HEIGHT_TYPE_BASE_LINK = 0;
-    static const int HEIGHT_TYPE_WGS84 = 1;
-    static const int HEIGHT_TYPE_EGM96 = 2;
+    enum
+    {
+        HEIGHT_TYPE_EGM96,
+        HEIGHT_TYPE_WGS84,
+        HEIGHT_TYPE_ZERO,
+        HEIGHT_TYPE_FROM_TF_FRAME,
+    };
 
   public:
     AerialMapDisplay();
@@ -85,6 +92,7 @@ class AerialMapDisplay : public Display
     void createGeometry();
     bool applyTransforms(bool force_new_ref = false);
     bool getAxisAlignedPoseInUtmFrame(geometry_msgs::Pose& out);
+    float getHeightOfTfInUtmFrame(const std::string& tf);
 
     std::vector<std::shared_ptr<rviz::MapTile>> objects_;
     std::vector<Ogre::MaterialPtr> materials_;
@@ -97,11 +105,15 @@ class AerialMapDisplay : public Display
     TfFrameProperty* utm_frame_property_;
     FloatProperty* alpha_property_;
     BoolProperty* draw_under_property_;
+    EnumProperty* height_type_property_;
+    TfFrameProperty* height_tf_frame_property_;
     FloatProperty* height_offset_property_;
     EnumProperty* map_type_property_;
     std::string utm_frame_;
     float alpha_;
     bool draw_under_;
+    int height_type_;
+    std::string height_tf_frame_;
     float height_offset_;
     int map_type_;
 

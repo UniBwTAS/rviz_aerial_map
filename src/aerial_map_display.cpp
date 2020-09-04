@@ -36,8 +36,8 @@ AerialMapDisplay::AerialMapDisplay() : Display(), messages_received_(0), dirty_(
                              this,
                              SLOT(updateTopic()));
 
-    utm_frame_property_ = new TfFrameProperty(
-        "UTM frame", "utm", "Specify UTM frame.", this, nullptr, false, SLOT(propertyChanged()));
+    utm_frame_property_ =
+        new TfFrameProperty("UTM frame", "utm", "Specify UTM frame.", this, nullptr, false, SLOT(propertyChanged()));
 
     alpha_property_ =
         new FloatProperty("Alpha", 1, "Amount of transparency to apply to the map.", this, SLOT(propertyChanged()));
@@ -50,6 +50,24 @@ AerialMapDisplay::AerialMapDisplay() : Display(), messages_received_(0), dirty_(
                                             " drawn behind everything else.",
                                             this,
                                             SLOT(propertyChanged()));
+
+    height_type_property_ = new EnumProperty("Height type",
+                                             "Geoid (EGM96)",
+                                             "Specify which reference height to draw the map into the UTM frame.",
+                                             this,
+                                             SLOT(propertyChanged()));
+    height_type_property_->addOption("Geoid (EGM96)", HEIGHT_TYPE_EGM96);
+    height_type_property_->addOption("Ellipsoid (WGS84)", HEIGHT_TYPE_WGS84);
+    height_type_property_->addOption("Zero", HEIGHT_TYPE_ZERO);
+    height_type_property_->addOption("From tf frame", HEIGHT_TYPE_FROM_TF_FRAME);
+
+    height_tf_frame_property_ = new TfFrameProperty("Tf frame for height",
+                                                    "base_link",
+                                                    "Specify tf frame to choose height from.",
+                                                    this,
+                                                    nullptr,
+                                                    false,
+                                                    SLOT(propertyChanged()));
 
     height_offset_property_ = new FloatProperty(
         "Height offset",
@@ -109,6 +127,7 @@ void AerialMapDisplay::onInitialize()
 
     tile_node_ = scene_node_->createChildSceneNode();
     utm_frame_property_->setFrameManager(context_->getFrameManager());
+    height_tf_frame_property_->setFrameManager(context_->getFrameManager());
 }
 
 void AerialMapDisplay::onEnable()
@@ -158,6 +177,8 @@ void AerialMapDisplay::propertyChanged()
     utm_frame_ = utm_frame_property_->getStdString();
     alpha_ = alpha_property_->getFloat();
     draw_under_ = draw_under_property_->getBool();
+    height_type_ = height_type_property_->getOptionInt();
+    height_tf_frame_ = height_tf_frame_property_->getStdString();
     height_offset_ = height_offset_property_->getFloat();
     map_type_ = map_type_property_->getOptionInt();
 
@@ -167,6 +188,15 @@ void AerialMapDisplay::propertyChanged()
 
     tile_uri_ = tile_uri_property_->getStdString();
     roi_ = roi_property_->getFloat();
+
+    if (height_type_ == HEIGHT_TYPE_FROM_TF_FRAME)
+    {
+        height_tf_frame_property_->show();
+    }
+    else
+    {
+        height_tf_frame_property_->hide();
+    }
 
     if (map_type_ == MAP_TYPE_TIFF)
     {
@@ -482,7 +512,7 @@ bool AerialMapDisplay::applyTransforms(bool force_new_ref)
     {
         setStatus(StatusProperty::Error,
                   "Transform",
-                  "Could not transform from [" + QString::fromStdString(utm_frame_) + "] to Fixed Frame [" +
+                  "Could not transform from utm frame [" + QString::fromStdString(utm_frame_) + "] to fixed frame [" +
                       fixed_frame_ + "]");
         return false;
     }
@@ -517,8 +547,21 @@ bool AerialMapDisplay::getAxisAlignedPoseInUtmFrame(geometry_msgs::Pose& out)
     tas::proj::UtmCoord cur_utm_;
     gps_utm_converter_.gpsToUtm(gps, cur_utm_);
 
-    // use geoidal height
-    cur_utm_.altitude = geoid_converter_.geoidalHeight(gps.lon, gps.lat, gps.altitude);
+    switch (height_type_)
+    {
+        case HEIGHT_TYPE_EGM96:
+            cur_utm_.altitude = geoid_converter_.geoidalHeight(gps.lon, gps.lat, gps.altitude);
+            break;
+        case HEIGHT_TYPE_WGS84:
+            // according to NavSatFix.msg spec already in ellipsoid height
+            break;
+        case HEIGHT_TYPE_ZERO:
+            cur_utm_.altitude = 0;
+            break;
+        case HEIGHT_TYPE_FROM_TF_FRAME:
+            cur_utm_.altitude = getHeightOfTfInUtmFrame(height_tf_frame_);
+            break;
+    }
 
     // set utm coords as pose in utm frame
     out.position.x = cur_utm_.east;
@@ -530,6 +573,24 @@ bool AerialMapDisplay::getAxisAlignedPoseInUtmFrame(geometry_msgs::Pose& out)
     out.orientation.w = 1;
 
     return true;
+}
+
+float AerialMapDisplay::getHeightOfTfInUtmFrame(const std::string& tf_name)
+{
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer = context_->getFrameManager()->getTF2BufferPtr();
+    try
+    {
+        auto tf = tf_buffer->lookupTransform(utm_frame_, tf_name, ros::Time(0));
+        return tf.transform.translation.z;
+    }
+    catch (tf2::TransformException& ex)
+    {
+        setStatus(StatusProperty::Error,
+                  "Transform",
+                  "Could not transform from [" + QString::fromStdString(utm_frame_) + "] to reference height frame [" +
+                      QString::fromStdString(tf_name) + "]");
+        return 0;
+    }
 }
 
 } // namespace rviz
