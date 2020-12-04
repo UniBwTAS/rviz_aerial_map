@@ -305,8 +305,7 @@ void AerialMapDisplay::createGeometry()
 
 void AerialMapDisplay::update(float, float)
 {
-    // create all geometry, if necessary
-    assembleScene();
+    applyTransforms();
 
     // draw
     context_->queueRender();
@@ -319,9 +318,11 @@ void AerialMapDisplay::navFixCallback(sensor_msgs::NavSatFixConstPtr const& msg)
 
     last_msg_ = msg;
 
-    // re-load imagery
-    applyTransforms();
+    // re-load imagery, if necessary
     loadImagery();
+
+    // create all geometry, if necessary
+    assembleScene();
 }
 
 void AerialMapDisplay::loadImagery()
