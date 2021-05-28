@@ -14,7 +14,8 @@
     <depend>sensor_msgs</depend>
     <depend>ogre_primitives</depend>
     <depend>tas_proj</depend>
-    <depend>map_helpers</depend>
+    <depend>libgdal-dev</depend>
+    <depend>boost</depend>
 
     <export>
         <rviz plugin="${prefix}/plugin_description.xml"/>

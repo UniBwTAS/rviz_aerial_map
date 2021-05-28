@@ -3,7 +3,7 @@
 #include <map>
 #include <mutex>
 
-#include "helpers/image_downloader.h"
+#include "image_downloader.h"
 
 class TextureCache
 {

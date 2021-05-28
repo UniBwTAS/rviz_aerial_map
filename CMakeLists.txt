@@ -1,10 +1,20 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(rviz_aerial_map)
 
+# ROS dependencies
+find_package(catkin REQUIRED COMPONENTS
+    roscpp
+    rviz
+    sensor_msgs
+    ogre_primitives
+    tas_proj)
+
+# System dependencies
+find_package(GDAL)
+find_package(Boost REQUIRED)
+find_package(Qt5 COMPONENTS Core Gui Network Concurrent REQUIRED)
 find_package(PkgConfig REQUIRED)
-
 pkg_check_modules(OGRE_OV OGRE OGRE-Overlay)
-
 # Old versions of OGRE (pre 1.9) included OGRE-Overlay in the main package
 # (i.e. there was no OGRE-Overlay component).  So if the above
 # pkg_check_modules() failed, try looking for just OGRE.
@@ -12,86 +22,71 @@ if (NOT OGRE_OV_FOUND)
     pkg_check_modules(OGRE_OV REQUIRED OGRE)
 endif ()
 
-find_package(catkin REQUIRED COMPONENTS
-    roscpp
-    rviz
-    sensor_msgs
-    ogre_primitives
-    tas_proj
-    map_helpers)
+###################################
+## catkin specific configuration ##
+###################################
 
-catkin_package(CATKIN_DEPENDS
-    sensor_msgs
-    ogre_primitives
-    tas_proj
-    map_helpers)
+catkin_package(
+    INCLUDE_DIRS include
+    LIBRARIES map_helper
+    CATKIN_DEPENDS tas_proj
+    DEPENDS Qt5Core GDAL Boost)
 
-if (rviz_QT_VERSION VERSION_LESS "5")
-    find_package(Qt4 COMPONENTS QtCore QtGui QtNetwork REQUIRED)
-    include(${QT_USE_FILE})
-else ()
-    find_package(Qt5 COMPONENTS Core Gui Network Concurrent REQUIRED)
-endif ()
+###########
+## Build ##
+###########
 
-set(${PROJECT_NAME}_SOURCES
-    src/aerial_map_display.cpp
-    src/helpers/texture_cache.cpp
-    src/helpers/image_downloader.cpp
+include_directories(
+    include
+    ${catkin_INCLUDE_DIRS}
+    ${Qt5Core_INCLUDE_DIRS}
+    ${Qt5Gui_INCLUDE_DIRS}
+    ${Qt5Network_INCLUDE_DIRS}
+    ${Qt5Concurrent_INCLUDE_DIRS}
+    ${GDAL_INCLUDE_DIRS}
+    ${BOOST_INCLUDE_DIRS}
+    ${OGRE_OV_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+# Build map helper library
+add_library(map_helper
+    src/map_helpers/tiff_tile_helper.cpp
+    src/map_helpers/osm_tile_helper.cpp
+    )
+target_link_libraries(map_helper
+    ${catkin_LIBRARIES}
+    ${GDAL_LIBRARIES}
+    ${Qt5Core_LIBRARIES}
+    ${BOOST_LIBRARIES}
     )
 
+# Build rviz plugin library
+add_definitions("-Wall -Wunused -std=c++11 -DRVIZ_SATELLITE_VERSION=\"\\\"${rviz_satellite_VERSION}\\\"\"")
 set(${PROJECT_NAME}_HEADERS
     src/aerial_map_display.h
-    src/helpers/image_downloader.h
+    src/vis_helpers/image_downloader.h
     )
-
-# invoke MOC and UI/ include Qt headers/ link Qt libraries
-if (rviz_QT_VERSION VERSION_LESS "5")
-    qt4_wrap_cpp(${PROJECT_NAME}_MOCSrcs ${${PROJECT_NAME}_HEADERS})
-    include_directories(${Qt4_INCLUDE_DIR})
-    link_libraries(
-        ${QT_LIBRARIES}
-    )
-else ()
-    qt5_wrap_cpp(${PROJECT_NAME}_MOCSrcs ${${PROJECT_NAME}_HEADERS})
-    include_directories(
-        ${Qt5Core_INCLUDE_DIRS}
-        ${Qt5Gui_INCLUDE_DIRS}
-        ${Qt5Network_INCLUDE_DIRS}
-        ${Qt5Concurrent_INCLUDE_DIRS}
-    )
-    link_libraries(
-        ${Qt5Core_LIBRARIES}
-        ${Qt5Gui_LIBRARIES}
-        ${Qt5Network_LIBRARIES}
-        ${Qt5Concurrent_LIBRARIES}
-    )
-endif ()
-
-# Other includes
-include_directories(
-    ${CMAKE_CURRENT_BINARY_DIR}
-    ${OGRE_OV_INCLUDE_DIRS}
-    ${catkin_INCLUDE_DIRS}
-    src
-)
-
-# Other libraries
-link_libraries(
-    ${QT_LIBRARIES}
-    ${catkin_LIBRARIES}
-)
-
-# set compiler options and inject version of software (see tileloader.cpp)
-add_definitions("-Wall -Wunused -std=c++11 -DRVIZ_SATELLITE_VERSION=\"\\\"${rviz_satellite_VERSION}\\\"\"")
-
-set(PROJECT_SOURCE_FILES
-    ${${PROJECT_NAME}_SOURCES}
-    ${${PROJECT_NAME}_MOCSrcs}
-    )
+qt5_wrap_cpp(${PROJECT_NAME}_MOCSrcs ${${PROJECT_NAME}_HEADERS})
 
 add_library(${PROJECT_NAME}
-    ${PROJECT_SOURCE_FILES}
+    src/aerial_map_display.cpp
+    src/vis_helpers/image_downloader.cpp
+    src/vis_helpers/texture_cache.cpp
+    ${${PROJECT_NAME}_MOCSrcs}
     )
+target_link_libraries(${PROJECT_NAME}
+    ${catkin_LIBRARIES}
+    ${Qt5Core_LIBRARIES}
+    ${Qt5Gui_LIBRARIES}
+    ${Qt5Network_LIBRARIES}
+    ${Qt5Concurrent_LIBRARIES}
+    map_helper
+    )
+
+#############
+## Install ##
+#############
 
 install(TARGETS ${PROJECT_NAME}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

@@ -17,7 +17,7 @@
 #include <tas_proj/geoid_converter.h>
 #include <tas_proj/gps_utm_converter.h>
 
-#include "helpers/texture_cache.h"
+#include "vis_helpers/texture_cache.h"
 
 namespace rviz
 {
