@@ -1,0 +1,6 @@
+<launch>
+    <node name="generate_tf_utm" pkg="rviz_aerial_map" type="generate_tf_utm.py"/>
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find rviz_aerial_map)/rviz/demo.rviz"/>
+
+    <node name="rosbag" pkg="rosbag" type="play" args="$(find rviz_aerial_map)/sample.bag --loop --clock"/>
+</launch>
