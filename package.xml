@@ -2,7 +2,7 @@
 <package format="2">
     <name>rviz_aerial_map</name>
     <version>0.1.0</version>
-    <description>Display satellite map tiles in RViz</description>
+    <description>Display aerial image tiles in RViz</description>
     <author>Andreas Reich</author>
     <maintainer email="andreas.reich@unibw.de">anre</maintainer>
     <license>BSD</license>

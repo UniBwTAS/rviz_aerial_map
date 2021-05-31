@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(rviz_aerial_map)
 
+set(RVIZ_AERIAL_MAP_VERSION "1.0.0")
+
 # ROS dependencies
 find_package(catkin REQUIRED COMPONENTS
     roscpp
@@ -62,7 +64,7 @@ target_link_libraries(map_helper
     )
 
 # Build rviz plugin library
-add_definitions("-Wall -Wunused -std=c++11 -DRVIZ_SATELLITE_VERSION=\"\\\"${rviz_satellite_VERSION}\\\"\"")
+add_definitions("-Wall -Wunused -std=c++11 -DRVIZ_AERIAL_MAP_VERSION=\"\\\"${RVIZ_AERIAL_MAP_VERSION}\\\"\"")
 set(${PROJECT_NAME}_HEADERS
     src/aerial_map_display.h
     src/vis_helpers/image_downloader.h

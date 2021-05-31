@@ -8,24 +8,23 @@ namespace tas
 {
 namespace visualization
 {
-
 namespace bg = boost::geometry;
 typedef bg::model::d2::point_xy<double> Point2d;
 typedef bg::model::polygon<Point2d> Polygon;
 
 struct TileInfo
 {
-    TileInfo() : filename(""), enclosure(Polygon())
-    {
-    }
+  TileInfo() : filename(""), enclosure(Polygon())
+  {
+  }
 
-    TileInfo(std::string filename, Polygon enclosure) : filename(std::move(filename)), enclosure(std::move(enclosure))
-    {
-    }
+  TileInfo(std::string filename, Polygon enclosure) : filename(std::move(filename)), enclosure(std::move(enclosure))
+  {
+  }
 
-    std::string filename;
-    Polygon enclosure;
+  std::string filename;
+  Polygon enclosure;
 };
 
-} // namespace visualization
-} // namespace tas
+}  // namespace visualization
+}  // namespace tas
