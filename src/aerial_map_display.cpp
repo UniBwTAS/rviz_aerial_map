@@ -243,10 +243,12 @@ void AerialImageDisplay::clear()
 void AerialImageDisplay::clearGeometry()
 {
   if (tile_node_)
-  {
     tile_node_->removeAndDestroyAllChildren();
-  }
+
   objects_.clear();
+
+  for(auto& material : materials_)
+    MaterialManager::getSingleton().remove(material->getName());
   materials_.clear();
 }
 
