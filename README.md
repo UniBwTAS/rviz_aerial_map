@@ -1,5 +1,7 @@
 # rviz_aerial_map
 
+![Status Badge](https://github.com/UniBwTAS/rviz_aerial_map/actions/workflows/basic-build-ci.yml/badge.svg?branch=master)
+
 Plugin for rviz for displaying aerial images. It allows to visualize your own geo-referenced images as well as map tiles
 from OpenStreetMap and similar.
 
