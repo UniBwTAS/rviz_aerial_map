@@ -6,6 +6,7 @@ set(RVIZ_AERIAL_MAP_VERSION "1.0.0")
 # ROS dependencies
 find_package(catkin REQUIRED COMPONENTS
     roscpp
+    roslint
     rviz
     sensor_msgs
     ogre_primitives
@@ -85,6 +86,8 @@ target_link_libraries(${PROJECT_NAME}
     ${Qt5Concurrent_LIBRARIES}
     map_helper
     )
+
+roslint_cpp()
 
 #############
 ## Install ##
