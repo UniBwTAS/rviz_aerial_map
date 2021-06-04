@@ -32,7 +32,6 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <ros/ros.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <OGRE/OgreImageCodec.h>
@@ -43,13 +42,11 @@
 #include <OGRE/OgreTextureManager.h>
 #include <OGRE/OgreVector3.h>
 
-#include <rviz/display_context.h>
 #include <rviz/frame_manager.h>
 #include <rviz/ogre_helpers/grid.h>
 #include <rviz/properties/enum_property.h>
 #include <rviz/properties/float_property.h>
 #include <rviz/properties/int_property.h>
-#include <rviz/properties/ros_topic_property.h>
 #include <rviz/properties/tf_frame_property.h>
 
 #include <boost/geometry/algorithms/num_points.hpp>
@@ -58,13 +55,9 @@
 
 namespace rviz
 {
-AerialImageDisplay::AerialImageDisplay() : Display(), messages_received_(0), dirty_(false)
+AerialImageDisplay::AerialImageDisplay() : dirty_(false)
 {
   // general properties
-
-  topic_property_ =
-      new RosTopicProperty("Topic", "", QString::fromStdString(ros::message_traits::datatype<sensor_msgs::NavSatFix>()),
-                           "sensor_msgs::NavSatFix topic to subscribe to.", this, SLOT(updateTopic()));
 
   utm_frame_property_ =
       new TfFrameProperty("UTM frame", "utm", "Specify UTM frame.", this, nullptr, false, SLOT(propertyChanged()));
@@ -131,15 +124,9 @@ AerialImageDisplay::AerialImageDisplay() : Display(), messages_received_(0), dir
                                     this, SLOT(propertyChanged()));
 }
 
-AerialImageDisplay::~AerialImageDisplay()
-{
-  unsubscribe();
-  clear();
-}
-
 void AerialImageDisplay::onInitialize()
 {
-  Display::onInitialize();
+  MFDClass::onInitialize();
 
   tile_node_ = scene_node_->createChildSceneNode();
   utm_frame_property_->setFrameManager(context_->getFrameManager());
@@ -148,43 +135,8 @@ void AerialImageDisplay::onInitialize()
 
 void AerialImageDisplay::onEnable()
 {
-  subscribe();
+  MFDClass::onEnable();
   propertyChanged();
-}
-
-void AerialImageDisplay::onDisable()
-{
-  unsubscribe();
-  clear();
-}
-
-void AerialImageDisplay::subscribe()
-{
-  if (!isEnabled())
-  {
-    return;
-  }
-
-  if (!topic_property_->getTopic().isEmpty())
-  {
-    try
-    {
-      ROS_INFO("Subscribing to %s", topic_property_->getTopicStd().c_str());
-      coord_sub_ = update_nh_.subscribe(topic_property_->getTopicStd(), 1, &AerialImageDisplay::navFixCallback, this);
-
-      setStatus(StatusProperty::Ok, "Topic", "OK");
-    }
-    catch (ros::Exception& e)
-    {
-      setStatus(StatusProperty::Error, "Topic", QString("Error subscribing: ") + e.what());
-    }
-  }
-}
-
-void AerialImageDisplay::unsubscribe()
-{
-  coord_sub_.shutdown();
-  ROS_INFO("Unsubscribing.");
 }
 
 void AerialImageDisplay::propertyChanged()
@@ -259,16 +211,8 @@ void AerialImageDisplay::propertyChanged()
   context_->queueRender();
 }
 
-void AerialImageDisplay::updateTopic()
-{
-  unsubscribe();
-  clear();
-  subscribe();
-}
-
 void AerialImageDisplay::clear()
 {
-  setStatus(StatusProperty::Warn, "NavSatFix", "No NavSatFix received");
   setStatus(StatusProperty::Warn, "Tiles", "No image tiles loaded");
   clearGeometry();
   dirty_ = true;
@@ -328,11 +272,8 @@ void AerialImageDisplay::update(float, float)
   context_->queueRender();
 }
 
-void AerialImageDisplay::navFixCallback(sensor_msgs::NavSatFixConstPtr const& msg)
+void AerialImageDisplay::processMessage(const sensor_msgs::NavSatFix::ConstPtr& msg)
 {
-  ++messages_received_;
-  setStatus(StatusProperty::Ok, "NavSatFix", QString::number(messages_received_) + " messages received");
-
   last_msg_ = msg;
 
   // re-load imagery, if necessary
@@ -515,14 +456,10 @@ bool AerialImageDisplay::applyTransforms(bool force_new_ref)
   // get transform between camera and ref pose
   Ogre::Quaternion orientation;
   Ogre::Vector3 position;
-  if (!context_->getFrameManager()->transform(utm_frame_, ros::Time(), *ref_pose_, position, orientation))
+  if (!context_->getFrameManager()->transform(utm_frame_, last_msg_->header.stamp, *ref_pose_, position, orientation))
   {
-    setStatus(StatusProperty::Error, "Transform",
-              "Could not transform from utm frame [" + QString::fromStdString(utm_frame_) + "] to fixed frame [" +
-                  fixed_frame_ + "]");
     return false;
   }
-  setStatus(StatusProperty::Ok, "Transform", "Transform OK");
 
   tile_node_->setPosition(position);
   tile_node_->setOrientation(orientation);
@@ -532,15 +469,14 @@ bool AerialImageDisplay::applyTransforms(bool force_new_ref)
 
 void AerialImageDisplay::fixedFrameChanged()
 {
-  applyTransforms();
+  tf_filter_->setTargetFrames({ utm_frame_, fixed_frame_.toStdString() });
+  reset();
 }
 
 void AerialImageDisplay::reset()
 {
-  messages_received_ = 0;
-
-  Display::reset();
-  updateTopic();
+  MFDClass::reset();
+  clear();
 }
 
 bool AerialImageDisplay::getAxisAlignedPoseInUtmFrame(geometry_msgs::Pose& out)
@@ -586,14 +522,11 @@ float AerialImageDisplay::getHeightOfTfInUtmFrame(const std::string& tf_name)
   std::shared_ptr<tf2_ros::Buffer> tf_buffer = context_->getFrameManager()->getTF2BufferPtr();
   try
   {
-    auto tf = tf_buffer->lookupTransform(utm_frame_, tf_name, ros::Time(0));
+    auto tf = tf_buffer->lookupTransform(utm_frame_, tf_name, last_msg_->header.stamp);
     return tf.transform.translation.z;
   }
   catch (tf2::TransformException& ex)
   {
-    setStatus(StatusProperty::Error, "Transform",
-              "Could not transform from [" + QString::fromStdString(utm_frame_) + "] to reference height frame [" +
-                  QString::fromStdString(tf_name) + "]");
     return 0;
   }
 }
