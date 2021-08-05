@@ -25,7 +25,7 @@ The package contains a launch file for demonstration purposes.
 Use it to verify your installation and to get started:
 
 ```
-roslaunch rviz_aerial_image demo.launch
+roslaunch rviz_aerial_map demo.launch
 ```
 
 The launch file plays the sample rosbag containing NavSatFix messages and displays Rviz together with this plugin.
