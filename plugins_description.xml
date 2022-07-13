@@ -1,0 +1,10 @@
+<library path="rviz_aerial_map">
+    <class name="rviz_aerial_map/AerialMap"
+           type="rviz_aerial_map::displays::AerialImageDisplay"
+           base_class_type="rviz_common::Display">
+        <description>
+            Displays an aerial image at current sensor_msgs/NavSatFix (GPS) position.
+        </description>
+        <message_type>sensor_msgs/msg/NavSatFix</message_type>
+    </class>
+</library>

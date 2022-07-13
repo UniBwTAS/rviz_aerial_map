@@ -34,22 +34,13 @@
 
 #pragma once
 
-#include <boost/optional.hpp>
-
-#include <ros/ros.h>
-
-#include <rviz/display.h>
 #include <rviz/ogre_primitives/map_tile.h>
 
 #ifndef Q_MOC_RUN
-#include <message_filters/subscriber.h>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
 #endif
-#include <rviz/message_filter_display.h>
 
-#include <OGRE/OgreMaterial.h>
-
-#include <geometry_msgs/Pose.h>
-#include <sensor_msgs/NavSatFix.h>
+#include "rviz_common/message_filter_display.hpp"
 
 #include <map_helpers/osm_tile_helper.h>
 #include <map_helpers/tiff_tile_helper.h>
@@ -58,17 +49,22 @@
 
 #include "vis_helpers/texture_cache.h"
 
-namespace rviz
+using namespace rviz_common::properties;
+
+namespace rviz_common::properties
 {
 class FloatProperty;
 class IntProperty;
-class RosTopicProperty;
 class StringProperty;
 class BoolProperty;
 class EnumProperty;
 class TfFrameProperty;
+}  // namespace rviz_common::properties
 
-class AerialImageDisplay : public rviz::MessageFilterDisplay<sensor_msgs::NavSatFix>
+namespace rviz_aerial_map::displays
+{
+
+class AerialImageDisplay : public rviz_common::MessageFilterDisplay<sensor_msgs::msg::NavSatFix>
 {
   Q_OBJECT
 public:
@@ -89,7 +85,6 @@ public:
 public:
   AerialImageDisplay();
 
-
   void reset() override;
   void update(float, float) override;
 
@@ -100,7 +95,7 @@ protected:
   // overrides from MessageFilterDisplay
   void onEnable() override;
   void onInitialize() override;
-  void processMessage(const sensor_msgs::NavSatFix::ConstPtr& msg) override;
+  void processMessage(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg) override;
   void fixedFrameChanged() override;
 
   void loadImagery();
@@ -109,7 +104,7 @@ protected:
   void clearGeometry();
   void createGeometry();
   bool applyTransforms(bool force_new_ref = false);
-  bool getAxisAlignedPoseInUtmFrame(geometry_msgs::Pose& out);
+  bool getAxisAlignedPoseInUtmFrame(geometry_msgs::msg::Pose& out);
   float getHeightOfTfInUtmFrame(const std::string& tf);
 
   std::vector<std::shared_ptr<rviz::MapTile>> objects_;
@@ -132,16 +127,16 @@ protected:
   int map_type_{};
 
   // osm specific properties
-  StringProperty* tile_url_property_;
-  IntProperty* zoom_property_;
-  IntProperty* blocks_property_;
+  rviz_common::properties::StringProperty* tile_url_property_;
+  rviz_common::properties::IntProperty* zoom_property_;
+  rviz_common::properties::IntProperty* blocks_property_;
   std::string tile_url_;
   unsigned int zoom_{};
   int blocks_{};
 
   // tiff specific properties
-  StringProperty* tile_uri_property_;
-  FloatProperty* roi_property_;
+  rviz_common::properties::StringProperty* tile_uri_property_;
+  rviz_common::properties::FloatProperty* roi_property_;
   std::string tile_uri_;
   float roi_{};
 
@@ -150,12 +145,12 @@ protected:
   tas::proj::GeoidConverter geoid_converter_;
   std::unique_ptr<tas::visualization::TiffTileHelper> tiff_tile_helper_;
   std::unique_ptr<tas::visualization::OsmTileHelper> osm_tile_helper_;
-  geometry_msgs::PosePtr ref_pose_;
+  geometry_msgs::msg::Pose::SharedPtr ref_pose_;
   Ogre::SceneNode* tile_node_ = nullptr;
   bool dirty_;
-  sensor_msgs::NavSatFixConstPtr last_msg_;
+  sensor_msgs::msg::NavSatFix::ConstSharedPtr last_msg_;
   std::unique_ptr<TextureCache> texture_cache_;
-  boost::optional<std::vector<tas::visualization::TileInfo>> tile_infos_;
+  std::optional<std::vector<tas::visualization::TileInfo>> tile_infos_;
 };
 
-}  // namespace rviz
+}  // namespace rviz_aerial_map::displays

@@ -1,102 +1,155 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(rviz_aerial_map)
 
 set(RVIZ_AERIAL_MAP_VERSION "1.0.0")
+add_definitions("-DRVIZ_AERIAL_MAP_VERSION=\"\\\"${RVIZ_AERIAL_MAP_VERSION}\\\"\"")
 
-# ROS dependencies
-find_package(catkin REQUIRED COMPONENTS
-    roscpp
-    roslint
-    rviz
-    sensor_msgs
-    ogre_primitives
-    tas_proj)
-
-# System dependencies
-find_package(GDAL)
-find_package(Boost REQUIRED)
-find_package(Qt5 COMPONENTS Core Gui Network Concurrent REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(OGRE_OV OGRE OGRE-Overlay)
-# Old versions of OGRE (pre 1.9) included OGRE-Overlay in the main package
-# (i.e. there was no OGRE-Overlay component).  So if the above
-# pkg_check_modules() failed, try looking for just OGRE.
-if (NOT OGRE_OV_FOUND)
-    pkg_check_modules(OGRE_OV REQUIRED OGRE)
+# Default to C++14
+if (NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 14)
 endif ()
 
-###################################
-## catkin specific configuration ##
-###################################
+if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic -Wnon-virtual-dtor -Woverloaded-virtual)
+endif ()
 
-catkin_package(
-    INCLUDE_DIRS include
-    LIBRARIES map_helper
-    CATKIN_DEPENDS tas_proj
-    DEPENDS Qt5Core GDAL Boost)
+# We specifically don't turn on CMAKE_AUTOMOC, since it generates one huge
+# mocs_compilation.cpp file that takes a lot of memory to compile.  Instead
+# we create individual moc files that can be compiled separately.
 
-###########
-## Build ##
-###########
+find_package(ament_cmake REQUIRED)
 
-include_directories(
-    include
-    ${catkin_INCLUDE_DIRS}
-    ${Qt5Core_INCLUDE_DIRS}
-    ${Qt5Gui_INCLUDE_DIRS}
-    ${Qt5Network_INCLUDE_DIRS}
-    ${Qt5Concurrent_INCLUDE_DIRS}
-    ${GDAL_INCLUDE_DIRS}
-    ${BOOST_INCLUDE_DIRS}
-    ${OGRE_OV_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_BINARY_DIR}
-)
+find_package(rviz_common REQUIRED)
+find_package(rviz_rendering REQUIRED)
+find_package(rviz_ogre_vendor REQUIRED)
+
+find_package(Qt5 REQUIRED COMPONENTS Widgets Core Network Concurrent)
+
+find_package(geometry_msgs REQUIRED)
+
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tas_proj REQUIRED)
+find_package(ogre_primitives REQUIRED)
+find_package(GDAL)
 
 # Build map helper library
-add_library(map_helper
+add_library(map_helper SHARED
     src/map_helpers/tiff_tile_helper.cpp
     src/map_helpers/osm_tile_helper.cpp
     )
-target_link_libraries(map_helper
-    ${catkin_LIBRARIES}
+target_include_directories(map_helper PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
+    ${Qt5Core_INCLUDE_DIRS}
+    ${GDAL_INCLUDE_DIRS}
+    )
+target_link_libraries(map_helper PUBLIC
     ${GDAL_LIBRARIES}
     ${Qt5Core_LIBRARIES}
-    ${BOOST_LIBRARIES}
+    )
+ament_target_dependencies(map_helper
+    PUBLIC
+    tas_proj
     )
 
-# Build rviz plugin library
-add_definitions("-Wall -Wunused -std=c++11 -DRVIZ_AERIAL_MAP_VERSION=\"\\\"${RVIZ_AERIAL_MAP_VERSION}\\\"\"")
-set(${PROJECT_NAME}_HEADERS
+set(rviz_aerial_map_headers_to_moc
     src/aerial_map_display.h
     src/vis_helpers/image_downloader.h
     )
-qt5_wrap_cpp(${PROJECT_NAME}_MOCSrcs ${${PROJECT_NAME}_HEADERS})
 
-add_library(${PROJECT_NAME}
+foreach (header "${rviz_aerial_map_headers_to_moc}")
+    qt5_wrap_cpp(rviz_aerial_map_moc_files "${header}")
+endforeach ()
+
+set(rviz_aerial_map_source_files
     src/aerial_map_display.cpp
     src/vis_helpers/image_downloader.cpp
     src/vis_helpers/texture_cache.cpp
-    ${${PROJECT_NAME}_MOCSrcs}
     )
-target_link_libraries(${PROJECT_NAME}
-    ${catkin_LIBRARIES}
+
+add_library(rviz_aerial_map SHARED
+    ${rviz_aerial_map_moc_files}
+    ${rviz_aerial_map_source_files}
+    )
+
+target_include_directories(rviz_aerial_map PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
+    ${Qt5Widgets_INCLUDE_DIRS}
+    ${Qt5Core_INCLUDE_DIRS}
+    ${Qt5Network_INCLUDE_DIRS}
+    ${Qt5Concurrent_INCLUDE_DIRS}
+    )
+
+target_link_libraries(rviz_aerial_map PUBLIC
+    rviz_ogre_vendor::OgreMain
+    rviz_ogre_vendor::OgreOverlay
     ${Qt5Core_LIBRARIES}
-    ${Qt5Gui_LIBRARIES}
     ${Qt5Network_LIBRARIES}
     ${Qt5Concurrent_LIBRARIES}
     map_helper
     )
 
-roslint_cpp()
+pluginlib_export_plugin_description_file(rviz_common plugins_description.xml)
 
-#############
-## Install ##
-#############
-
-install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+ament_target_dependencies(rviz_aerial_map
+    PUBLIC
+    rclcpp
+    rviz_common
+    rviz_ogre_vendor
+    sensor_msgs
+    ogre_primitives
+    tas_proj
+    tf2
+    tf2_geometry_msgs
+    tf2_ros
     )
 
-install(FILES plugin_description.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+# Export old-style CMake variables
+ament_export_include_directories("include/${PROJECT_NAME}")
+
+# Export modern CMake targets
+ament_export_targets(rviz_aerial_map HAS_LIBRARY_TARGET)
+
+ament_export_dependencies(
+    rclcpp
+    rviz_common
+    rviz_ogre_vendor
+    sensor_msgs
+    ogre_primitives
+    tas_proj
+    rviz_rendering
+    tf2
+    tf2_geometry_msgs
+    tf2_ros
+)
+
+install(
+    TARGETS rviz_aerial_map
+    EXPORT rviz_aerial_map
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+
+install(
+    TARGETS map_helper
+    EXPORT rviz_aerial_map
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+    RUNTIME DESTINATION bin
+)
+
+install(
+    DIRECTORY include/
+    DESTINATION include/${PROJECT_NAME}
+)
+
+ament_package(
+    CONFIG_EXTRAS "rviz_aerial_map-extras.cmake"
+)
+

@@ -34,26 +34,27 @@
 
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
-#include <OGRE/OgreImageCodec.h>
-#include <OGRE/OgreManualObject.h>
-#include <OGRE/OgreMaterialManager.h>
-#include <OGRE/OgreSceneManager.h>
-#include <OGRE/OgreSceneNode.h>
-#include <OGRE/OgreTextureManager.h>
-#include <OGRE/OgreVector3.h>
+#include <OgreImageCodec.h>
+#include <OgreManualObject.h>
+#include <OgreMaterialManager.h>
+#include <OgreSceneManager.h>
+#include <OgreSceneNode.h>
+#include <OgreTextureManager.h>
+#include <OgreVector3.h>
+#include <OgreMaterialManager.h>
+#include <OgreTechnique.h>
 
-#include <rviz/frame_manager.h>
-#include <rviz/ogre_helpers/grid.h>
-#include <rviz/properties/enum_property.h>
-#include <rviz/properties/float_property.h>
-#include <rviz/properties/int_property.h>
-#include <rviz/properties/tf_frame_property.h>
+#include <rviz_common/frame_manager_iface.hpp>
+#include <rviz_common/properties/enum_property.hpp>
+#include <rviz_common/properties/float_property.hpp>
+#include <rviz_common/properties/int_property.hpp>
+#include <rviz_common/properties/tf_frame_property.hpp>
 
 #include <boost/geometry/algorithms/num_points.hpp>
 
 #include "aerial_map_display.h"
 
-namespace rviz
+namespace rviz_aerial_map::displays
 {
 AerialImageDisplay::AerialImageDisplay() : dirty_(false)
 {
@@ -226,7 +227,7 @@ void AerialImageDisplay::clearGeometry()
   objects_.clear();
 
   for (auto& material : materials_)
-    MaterialManager::getSingleton().remove(material->getName());
+    Ogre::MaterialManager::getSingleton().remove(material->getName());
   materials_.clear();
 }
 
@@ -272,7 +273,7 @@ void AerialImageDisplay::update(float, float)
   context_->queueRender();
 }
 
-void AerialImageDisplay::processMessage(const sensor_msgs::NavSatFix::ConstPtr& msg)
+void AerialImageDisplay::processMessage(const sensor_msgs::msg::NavSatFix::ConstSharedPtr msg)
 {
   last_msg_ = msg;
 
@@ -370,7 +371,7 @@ void AerialImageDisplay::assembleScene()
 
     tex_unit->setAlphaOperation(Ogre::LBX_SOURCE1, Ogre::LBS_MANUAL, Ogre::LBS_CURRENT, alpha_);
 
-    obj->setMaterial(material->getName());
+    obj->setMaterial(material);
 
     tas::visualization::Polygon polygon = tile_info.enclosure;
     auto it = boost::begin(boost::geometry::exterior_ring(polygon));
@@ -421,7 +422,7 @@ bool AerialImageDisplay::applyTransforms(bool force_new_ref)
   }
 
   // get current pose in utm frame from NavSatFix message
-  geometry_msgs::Pose cur_pose;
+  geometry_msgs::msg::Pose cur_pose;
   if (!getAxisAlignedPoseInUtmFrame(cur_pose))
   {
     return false;
@@ -445,7 +446,7 @@ bool AerialImageDisplay::applyTransforms(bool force_new_ref)
   // if distance is to large or the reference pose is not initialized yet then set a new ref pose
   if (!ref_pose_ || distance > 5000 || force_new_ref)
   {
-    ref_pose_.reset(new geometry_msgs::Pose());
+    ref_pose_.reset(new geometry_msgs::msg::Pose());
     *ref_pose_ = cur_pose;
 
     dirty_ = true;
@@ -479,7 +480,7 @@ void AerialImageDisplay::reset()
   clear();
 }
 
-bool AerialImageDisplay::getAxisAlignedPoseInUtmFrame(geometry_msgs::Pose& out)
+bool AerialImageDisplay::getAxisAlignedPoseInUtmFrame(geometry_msgs::msg::Pose& out)
 {
   // convert gps to utm
   tas::proj::GpsCoord gps;
@@ -519,11 +520,11 @@ bool AerialImageDisplay::getAxisAlignedPoseInUtmFrame(geometry_msgs::Pose& out)
 
 float AerialImageDisplay::getHeightOfTfInUtmFrame(const std::string& tf_name)
 {
-  std::shared_ptr<tf2_ros::Buffer> tf_buffer = context_->getFrameManager()->getTF2BufferPtr();
   try
   {
-    auto tf = tf_buffer->lookupTransform(utm_frame_, tf_name, last_msg_->header.stamp);
-    return tf.transform.translation.z;
+    tf2::TimePoint tp(std::chrono::nanoseconds(rclcpp::Time(last_msg_->header.stamp).nanoseconds()));
+    auto tf = context_->getFrameManager()->getTransformer()->lookupTransform(utm_frame_, tf_name, tp);
+    return static_cast<float>(tf.transform.translation.z);
   }
   catch (tf2::TransformException& ex)
   {
@@ -531,7 +532,7 @@ float AerialImageDisplay::getHeightOfTfInUtmFrame(const std::string& tf_name)
   }
 }
 
-}  // namespace rviz
+}  // namespace rviz_aerial_map::displays
 
-#include <pluginlib/class_list_macros.h>
-PLUGINLIB_EXPORT_CLASS(rviz::AerialImageDisplay, rviz::Display)
+#include <pluginlib/class_list_macros.hpp>  // NOLINT
+PLUGINLIB_EXPORT_CLASS(rviz_aerial_map::displays::AerialImageDisplay, rviz_common::Display)

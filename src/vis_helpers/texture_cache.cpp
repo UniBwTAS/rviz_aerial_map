@@ -32,10 +32,9 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
-#include <OGRE/OgreTextureManager.h>
+#include <OgreTextureManager.h>
 #include <QImage>
 #include <functional>
-#include <ros/console.h>
 
 #include "texture_cache.h"
 
@@ -71,7 +70,7 @@ bool TextureCache::request(const std::vector<std::string>& uris)
     bool load_image = false;
     if (it == cached_textures_.end())
     {
-      ROS_DEBUG_STREAM("LOADING [NOT LISTED]: " << uri);
+      // ROS_DEBUG_STREAM("LOADING [NOT LISTED]: " << uri);
       load_image = true;
     }
     else
@@ -80,7 +79,7 @@ bool TextureCache::request(const std::vector<std::string>& uris)
       double elapsed_time = static_cast<double>(clock() - std::get<1>(it->second)) / CLOCKS_PER_SEC;
       if ((status == Status::Error || status == Status::Loading) && elapsed_time > 3.)
       {
-        ROS_DEBUG_STREAM("LOADING [TIMEOUT]: " << uri << "(" << elapsed_time << ")");
+        // ROS_DEBUG_STREAM("LOADING [TIMEOUT]: " << uri << "(" << elapsed_time << ")");
         cached_textures_.erase(it);
         load_image = true;
       }
@@ -162,13 +161,13 @@ void TextureCache::imageLoaded(const std::string& uri, const QImage& image)
   {
     if (!image.isNull())
     {
-      ROS_DEBUG_STREAM("SUCCESS: " << uri);
+      // ROS_DEBUG_STREAM("SUCCESS: " << uri);
       std::get<2>(it->second) = textureFromImage(convertImage(image), uri);
       std::get<0>(it->second) = Status::Finished;
     }
     else
     {
-      ROS_DEBUG_STREAM("ERROR: " << uri << std::endl);
+      // ROS_DEBUG_STREAM("ERROR: " << uri << std::endl);
       std::get<0>(it->second) = Status::Error;
     }
   }

@@ -35,7 +35,7 @@
 #include <QDirIterator>
 #include <QStringList>
 
-#include <Eigen/Core>
+#include <proj.h>
 
 #include <gdal.h>
 #include <gdal_priv.h>
@@ -96,13 +96,12 @@ Polygon TiffTileHelper::extractImagePolygonFromGeoTiff(const std::string& filena
     return Polygon();
   }
   raster_band->GetYSize();
-  Eigen::Vector2d top_left(adf_geo_transform[0], adf_geo_transform[3]);
-  Eigen::Vector2d top_right(adf_geo_transform[0] + adf_geo_transform[1] * raster_band->GetXSize(),
-                            adf_geo_transform[3]);
-  Eigen::Vector2d bottom_right(adf_geo_transform[0] + adf_geo_transform[1] * raster_band->GetXSize(),
-                               adf_geo_transform[3] + adf_geo_transform[5] * raster_band->GetYSize());
-  Eigen::Vector2d bottom_left(adf_geo_transform[0],
-                              adf_geo_transform[3] + adf_geo_transform[5] * raster_band->GetYSize());
+  PJ_COORD top_left, top_right, bottom_right, bottom_left;
+  top_left.xy = { adf_geo_transform[0], adf_geo_transform[3] };
+  top_right.xy = { adf_geo_transform[0] + adf_geo_transform[1] * raster_band->GetXSize(), adf_geo_transform[3] };
+  bottom_right.xy = { adf_geo_transform[0] + adf_geo_transform[1] * raster_band->GetXSize(),
+                      adf_geo_transform[3] + adf_geo_transform[5] * raster_band->GetYSize() };
+  bottom_left.xy = { adf_geo_transform[0], adf_geo_transform[3] + adf_geo_transform[5] * raster_band->GetYSize() };
 
   tas::proj::GpsCoord top_left_projected, bottom_left_projected, bottom_right_projected, top_right_projected;
 
