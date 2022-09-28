@@ -34,7 +34,7 @@
 
 #pragma once
 
-#include <rviz/ogre_primitives/map_tile.h>
+#include <ogre_primitives/map_tile.h>
 
 #ifndef Q_MOC_RUN
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
@@ -107,7 +107,7 @@ protected:
   bool getAxisAlignedPoseInUtmFrame(geometry_msgs::msg::Pose& out);
   float getHeightOfTfInUtmFrame(const std::string& tf);
 
-  std::vector<std::shared_ptr<rviz::MapTile>> objects_;
+  std::vector<std::shared_ptr<ogre_primitives::MapTile>> objects_;
   std::vector<Ogre::MaterialPtr> materials_;
 
   // general properties

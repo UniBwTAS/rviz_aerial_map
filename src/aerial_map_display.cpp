@@ -256,7 +256,7 @@ void AerialImageDisplay::createGeometry()
     materials_.push_back(material);
 
     // create an object
-    auto tile = std::make_shared<rviz::MapTile>();
+    auto tile = std::make_shared<ogre_primitives::MapTile>();
     tile->setVisible(false);
     tile_node_->attachObject(tile.get());
     objects_.push_back(tile);
