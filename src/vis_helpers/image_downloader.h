@@ -32,6 +32,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 
+#pragma once
+
 #include <functional>
 
 #include <QImageReader>

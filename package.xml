@@ -9,9 +9,9 @@
 
     <buildtool_depend>catkin</buildtool_depend>
 
-    <build_depend>roslint</build_depend>
     <depend>roscpp</depend>
     <depend>rviz</depend>
+    <depend>qtbase5-dev</depend>
     <depend>sensor_msgs</depend>
     <depend>ogre_primitives</depend>
     <depend>tas_proj</depend>
