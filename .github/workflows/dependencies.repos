@@ -1,0 +1,9 @@
+repositories:
+  tas_proj:
+    type: git
+    url: https://github.com/UniBwTAS/tas_proj.git
+    version: master
+  ogre_primitives:
+    type: git
+    url: https://github.com/UniBwTAS/ogre_primitives.git
+    version: master
