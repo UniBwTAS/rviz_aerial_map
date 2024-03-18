@@ -39,7 +39,7 @@
 #include <ros/ros.h>
 
 #include <rviz/display.h>
-#include <rviz/ogre_primitives/map_tile.h>
+#include <ogre_primitives/map_tile.h>
 
 #ifndef Q_MOC_RUN
 #include <message_filters/subscriber.h>
