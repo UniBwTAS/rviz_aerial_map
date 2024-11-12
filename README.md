@@ -1,4 +1,4 @@
-# rviz_aerial_map
+# Aerial Image Plugin for the ROS 3D Robot Visualizer (RViz)
 
 [![Basic Build Workflow](https://github.com/UniBwTAS/rviz_aerial_map/actions/workflows/basic-build-ci.yaml/badge.svg?branch=master)](https://github.com/UniBwTAS/rviz_aerial_map/actions/workflows/basic-build-ci.yaml)
 
