@@ -1,11 +1,10 @@
 # rviz_aerial_map
 
-![Status Badge](https://github.com/UniBwTAS/rviz_aerial_map/actions/workflows/basic-build-ci.yml/badge.svg?branch=master)
+[![Basic Build Workflow](https://github.com/UniBwTAS/rviz_aerial_map/actions/workflows/basic-build-ci.yaml/badge.svg?branch=master)](https://github.com/UniBwTAS/rviz_aerial_map/actions/workflows/basic-build-ci.yaml)
 
-Plugin for rviz for displaying aerial images. It allows to visualize your own geo-referenced images as well as map tiles
-from OpenStreetMap and similar.
+Plugin for rviz for displaying aerial images. It allows to visualize your own geo-referenced images as well as map tiles from OpenStreetMap and similar.
 
-![Alt text](.screenshot.png?raw=true "Example Image")
+![Demo](https://github.com/UniBwTAS/rviz_aerial_map/blob/master/assets/aerial_map.gif)
 
 In order to use rviz_aerial_map, add this package to your catkin workspace. Additionally few more dependencies are 
 required:
